@@ -1,111 +1,115 @@
 // Replace this with your actual Google Apps Script Web App URL
 const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxPpZ8S4s_SuKFjKbii6GWd00xg42JR4iicxgkbHhb_2SXyHD5exgILYcIs_yJnF5emaw/exec";
 
+// Sheet names
+const SHEET_USERS = "Users";
+const SHEET_COURSES = "Courses";
+
 /**
- * Function to sign up a new user
+ * Helper function to fetch all data from a sheet
+ * @param {string} sheetName - Name of the sheet
+ * @returns {Array} - All rows of data
+ */
+function getSheetData(sheetName) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  return sheet.getDataRange().getValues();
+}
+
+/**
+ * Helper function to write data to a sheet
+ * @param {string} sheetName - Name of the sheet
+ * @param {Array} rowData - Data to write as a new row
+ */
+function writeDataToSheet(sheetName, rowData) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  sheet.appendRow(rowData);
+}
+
+/**
+ * Sign up a new user
  * @param {string} email - User's email
  * @param {string} password - User's password
+ * @returns {Object} - Success or failure message
  */
 function signUp(email, password) {
-  fetch(WEB_APP_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      action: "signUp",
-      email: email,
-      password: password,
-    }),
-  })
-    .then(response => response.json())
-    .then(data => {
-      alert(data.message);
-      console.log(data);
-    })
-    .catch(error => {
-      console.error("Error:", error);
-    });
+  const users = getSheetData(SHEET_USERS);
+  const userExists = users.some(row => row[0] === email);
+
+  if (userExists) {
+    return { success: false, message: "Email already registered." };
+  }
+
+  writeDataToSheet(SHEET_USERS, [email, password]);
+  return { success: true, message: "User registered successfully." };
 }
 
 /**
- * Function to log in a user
+ * Log in an existing user
  * @param {string} email - User's email
  * @param {string} password - User's password
+ * @returns {Object} - Success or failure message
  */
 function login(email, password) {
-  fetch(WEB_APP_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      action: "login",
-      email: email,
-      password: password,
-    }),
-  })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        alert("Login successful!");
-        console.log("User logged in:", data);
-      } else {
-        alert(data.message);
-      }
-    })
-    .catch(error => {
-      console.error("Error:", error);
-    });
+  const users = getSheetData(SHEET_USERS);
+  const user = users.find(row => row[0] === email && row[1] === password);
+
+  if (user) {
+    return { success: true, message: "Login successful." };
+  }
+  return { success: false, message: "Invalid email or password." };
 }
 
 /**
- * Function to fetch and display all courses
+ * Fetch all available courses
+ * @returns {Array} - List of courses
  */
-function fetchCourses() {
-  fetch(WEB_APP_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({
-      action: "getCourses",
-    }),
-  })
-    .then(response => response.json())
-    .then(courses => {
-      console.log("Courses fetched:", courses);
-      const coursesContainer = document.getElementById("courses");
-      coursesContainer.innerHTML = ""; // Clear any existing content
-
-      courses.forEach(course => {
-        const courseElement = document.createElement("div");
-        courseElement.classList.add("course-item");
-        courseElement.innerHTML = `
-          <h3>${course.courseName}</h3>
-          <p>Coach: ${course.coach}</p>
-          <p>Start Date: ${course.startDate}</p>
-          <p>End Date: ${course.endDate}</p>
-        `;
-        coursesContainer.appendChild(courseElement);
-      });
-    })
-    .catch(error => {
-      console.error("Error:", error);
-    });
+function getCourses() {
+  const courses = getSheetData(SHEET_COURSES);
+  return courses.slice(1).map(row => ({
+    courseId: row[0],
+    courseName: row[1],
+    coach: row[2],
+    startDate: row[3],
+    endDate: row[4],
+  }));
 }
 
-// Event listeners for buttons (example usage)
-document.getElementById("signUpButton").addEventListener("click", () => {
-  const email = document.getElementById("signUpEmail").value;
-  const password = document.getElementById("signUpPassword").value;
-  signUp(email, password);
-});
+/**
+ * Entry point for POST requests
+ * @param {Object} e - Event parameter
+ * @returns {ContentService} - JSON response
+ */
+function doPost(e) {
+  const action = e.parameter.action;
+  const email = e.parameter.email;
+  const password = e.parameter.password;
 
-document.getElementById("loginButton").addEventListener("click", () => {
-  const email = document.getElementById("loginEmail").value;
-  const password = document.getElementById("loginPassword").value;
-  login(email, password);
-});
+  let output;
 
-document.getElementById("fetchCoursesButton").addEventListener("click", fetchCourses);
+  if (action === "signUp") {
+    output = signUp(email, password);
+  } else if (action === "login") {
+    output = login(email, password);
+  } else if (action === "getCourses") {
+    output = getCourses();
+  } else {
+    output = { success: false, message: "Invalid action." };
+  }
+
+  return ContentService.createTextOutput(JSON.stringify(output))
+    .setMimeType(ContentService.MimeType.JSON)
+    .setHeader("Access-Control-Allow-Origin", "*");
+}
+
+/**
+ * Entry point for GET requests
+ * @param {Object} e - Event parameter
+ * @returns {ContentService} - HTML or JSON response
+ */
+function doGet(e) {
+  return ContentService.createTextOutput(
+    "Welcome to the Horse Riding Club API!"
+  )
+    .setMimeType(ContentService.MimeType.TEXT)
+    .setHeader("Access-Control-Allow-Origin", "*");
+}
