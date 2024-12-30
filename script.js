@@ -1,5 +1,5 @@
 // Replace this with your actual Google Apps Script Web App URL
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxJbAtnDpeo-MruoCRfHdjBQbL8jOwjHOtVfcabAznV3517QGZCRNKrmMqXwtSkDYorMA/exec";
+const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxPpZ8S4s_SuKFjKbii6GWd00xg42JR4iicxgkbHhb_2SXyHD5exgILYcIs_yJnF5emaw/exec";
 
 /**
  * Function to sign up a new user
